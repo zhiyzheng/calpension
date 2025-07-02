@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国养老退休金计算器</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="mockAverageWages.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 960px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        h1 {
+            color: #1a202c;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        h2 {
+            color: #2d3748;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #edf2f7;
+            padding-bottom: 0.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #4a5568;
+        }
+        input[type="number"],
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            color: #2d3748;
+            background-color: #f7fafc;
+        }
+        input[type="number"]:focus,
+        input[type="text"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+        }
+        button {
+            width: 100%;
+            padding: 1rem;
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 10px rgba(66, 153, 225, 0.3);
+        }
+        button:hover {
+            background-color: #3182ce;
+            box-shadow: 0 6px 15px rgba(66, 153, 225, 0.4);
+        }
+        .result-box {
+            background-color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            font-size: 1.1rem;
+            color: #2d3748;
+        }
+        .result-item {
+            display: flex;
+            flex-direction: column; /* Changed to column for formula display */
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed #cbd5e0;
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        .result-label {
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+        .result-value {
+            font-weight: 700;
+            color: #2b6cb0;
+            text-align: right; /* Align value to right */
+            flex-grow: 1;
+        }
+        .result-formula {
+            font-size: 0.85rem;
+            color: #5a67d8; /* A slightly darker blue for formulas */
+            margin-top: 0.2rem;
+            line-height: 1.3;
+            text-align: left;
+            padding-left: 1rem; /* Indent formula */
+        }
+        .note {
+            font-size: 0.875rem;
+            color: #718096;
+            margin-top: 0.5rem;
+        }
+        .grid-cols-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        @media (max-width: 768px) {
+            .grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="container">
+        <h1 class="text-3xl font-bold mb-6">中国养老退休金计算器</h1>
+
+        <!-- 个人基本信息 -->
+        <div class="p-6 bg-blue-50 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-blue-800">1. 个人基本信息</h2>
+            <div class="grid grid-cols-2">
+                <div>
+                    <label for="gender">性别:</label>
+                    <select id="gender" class="rounded-lg">
+                        <option value="male">男</option>
+                        <option value="female">女</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="currentAge">当前年龄 (岁):</label>
+                    <input type="number" id="currentAge" value="30" min="18" max="100" class="rounded-lg">
+                </div>
+                <div>
+                    <label for="birthYear">出生年份:</label>
+                    <input type="number" id="birthYear" value="1994" min="1900" max="2024" class="rounded-lg">
+                </div>
+                <div>
+                    <label for="retirementAge">预计退休年龄 (岁):</label>
+                    <input type="number" id="retirementAge" value="60" min="40" max="70" class="rounded-lg">
+                    <p class="note">法定退休年龄将根据您的性别和出生年份自动计算，您也可以自定义。</p>
+                </div>
+                <div>
+                    <label for="province">所在地 (省/市):</label>
+                    <select id="province" class="rounded-lg">
+                        <option value="全国">全国平均</option>
+                        <option value="广东">广东</option>
+                        <option value="上海">上海</option>
+                        <option value="北京">北京</option>
+                        <!-- 可以添加更多省市 -->
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 基本养老保险 (第一支柱) -->
+        <div class="p-6 bg-green-50 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-green-800">2. 基本养老保险 (第一支柱)</h2>
+            <div class="grid grid-cols-2">
+                <div>
+                    <label for="workStartDate">参加工作时间 (年):</label>
+                    <input type="number" id="workStartDate" value="2015" min="1950" max="2024" class="rounded-lg">
+                </div>
+                <div>
+                    <label for="actualPaidYears">实际缴费年限 (截至当前):</label>
+                    <input type="number" id="actualPaidYears" value="9" min="0" class="rounded-lg">
+                </div>
+                <div>
+                    <label for="deemedPaidYears">视同缴费年限 (如有):</label>
+                    <input type="number" id="deemedPaidYears" value="0" min="0" class="rounded-lg">
+                    <p class="note">通常指1992或1996年前参加工作。</p>
+                </div>
+                <div>
+                    <label for="currentMonthlyPaymentBase">当前月缴费工资基数 (元):</label>
+                    <input type="number" id="currentMonthlyPaymentBase" value="8000" min="0" class="rounded-lg">
+                </div>
+                <div>
+                    <label for="avgPaymentIndex">历史平均缴费工资指数 (默认为1):</label>
+                    <input type="number" id="avgPaymentIndex" value="1" step="0.01" min="0" class="rounded-lg">
+                    <p class="note">反映个人缴费水平与社会平均工资关系，可从社保平台查询。</p>
+                </div>
+                <div>
+                    <label for="personalAccountBalance">个人账户累计储存额 (截至当前，元):</label>
+                    <input type="number" id="personalAccountBalance" value="50000" min="0" class="rounded-lg">
+                    <p class="note">可从国家社会保险公共服务平台查询。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 补充养老金信息 (第二、三支柱) -->
+        <div class="p-6 bg-yellow-50 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-yellow-800">3. 补充养老金 (第二、三支柱)</h2>
+            <div class="grid grid-cols-2">
+                <div>
+                    <label for="hasEnterpriseAnnuity">是否参加企业/职业年金:</label>
+                    <select id="hasEnterpriseAnnuity" class="rounded-lg">
+                        <option value="no">否</option>
+                        <option value="yes">是</option>
+                    </select>
+                </div>
+                <div id="enterpriseAnnuityInputs" class="hidden">
+                    <label for="enterpriseAnnuityBalance">企业/职业年金个人账户累计储存额 (截至当前，元):</label>
+                    <input type="number" id="enterpriseAnnuityBalance" value="0" min="0" class="rounded-lg">
+                    <label for="enterpriseContributionRate">单位缴费比例 (%):</label>
+                    <input type="number" id="enterpriseContributionRate" value="8" min="0" max="12" step="0.1" class="rounded-lg">
+                    <label for="personalContributionRate">个人缴费比例 (%):</label>
+                    <input type="number" id="personalContributionRate" value="4" min="0" max="12" step="0.1" class="rounded-lg">
+                    <label for="enterpriseAnnuityInvestmentReturn">预期投资收益率 (%):</label>
+                    <input type="number" id="enterpriseAnnuityInvestmentReturn" value="4" min="0" step="0.1" class="rounded-lg">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 mt-4">
+                <div>
+                    <label for="hasPersonalPension">是否参加个人养老金:</label>
+                    <select id="hasPersonalPension" class="rounded-lg">
+                        <option value="no">否</option>
+                        <option value="yes">是</option>
+                    </select>
+                </div>
+                <div id="personalPensionInputs" class="hidden">
+                    <label for="personalPensionAnnualContribution">个人养老金年缴费额 (元):</label>
+                    <input type="number" id="personalPensionAnnualContribution" value="12000" min="0" max="12000" class="rounded-lg">
+                    <label for="personalPensionBalance">个人养老金个人账户累计储存额 (截至当前，元):</label>
+                    <input type="number" id="personalPensionBalance" value="0" min="0" class="rounded-lg">
+                    <label for="personalPensionInvestmentReturn">预期投资收益率 (%):</label>
+                    <input type="number" id="personalPensionInvestmentReturn" value="5" min="0" step="0.1" class="rounded-lg">
+                </div>
+            </div>
+        </div>
+
+        <!-- 未来预期参数 -->
+        <div class="p-6 bg-purple-50 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-purple-800">4. 未来预期参数</h2>
+            <div class="grid grid-cols-2">
+                <div>
+                    <label for="expectedPersonalWageGrowth">预期个人工资增长率 (%):</label>
+                    <input type="number" id="expectedPersonalWageGrowth" value="5" min="0" step="0.1" class="rounded-lg">
+                </div>
+                <div>
+                    <label for="expectedSocialWageGrowth">预期社会平均工资增长率 (%):</label>
+                    <input type="number" id="expectedSocialWageGrowth" value="4" min="0" step="0.1" class="rounded-lg">
+                </div>
+                <div>
+                    <label for="expectedInflationRate">预期通货膨胀率 (%):</label>
+                    <input type="number" id="expectedInflationRate" value="3" min="0" step="0.1" class="rounded-lg">
+                </div>
+                <div>
+                    <label for="expectedAccountInterestRate">预期养老保险个人账户记账利率 (%):</label>
+                    <input type="number" id="expectedAccountInterestRate" value="6" min="0" step="0.1" class="rounded-lg">
+                </div>
+            </div>
+        </div>
+
+        <button onclick="calculatePension()">计算养老金</button>
+
+        <!-- 计算结果 -->
+        <div class="result-box">
+            <h2 class="text-xl font-semibold mb-4 text-center">您的预计每月养老金</h2>
+            <div class="result-item">
+                <span class="result-label">基本养老金 (第一支柱):<span id="basicPensionResult" class="result-value">0.00 元/月</span></span>
+                <span id="basicPensionFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">企业/职业年金 (第二支柱):<span id="enterpriseAnnuityResult" class="result-value">0.00 元/月</span></span>
+                <span id="enterpriseAnnuityFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">个人养老金 (第三支柱):<span id="personalPensionResult" class="result-value">0.00 元/月</span></span>
+                <span id="personalPensionFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item mt-4">
+                <span class="result-label text-blue-700">总计每月养老金 (税前):<span id="totalPensionResult" class="result-value text-blue-700">0.00 元/月</span></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label text-red-700">总计每月养老金 (税后估算):<span id="totalPensionAfterTaxResult" class="result-value text-red-700">0.00 元/月</span></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">预计退休年龄:<span id="calculatedRetirementAge" class="result-value">-- 岁</span></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">预计总缴费年限:<span id="totalPaymentYears" class="result-value">-- 年</span></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">养老金替代率 (基于当前工资):<span id="replacementRate" class="result-value">-- %</span></span>
+            </div>
+            <div class="result-item mt-4">
+                <span class="result-label">当前社会年平均工资:<span id="currentAnnualAvgWageResult" class="result-value">0.00 元/年</span></span>
+                <span id="currentAnnualAvgWageFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">退休时社会月平均工资:<span id="retirementMonthlyAvgWageResult" class="result-value">0.00 元/月</span></span>
+                <span id="retirementMonthlyAvgWageFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">本人平均缴费工资指数:<span id="projectedAvgPaymentIndexResult" class="result-value">0.00</span></span>
+                <span id="projectedAvgPaymentIndexFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">本人指数化月平均缴费工资:<span id="indexedMonthlyPaymentWageResult" class="result-value">0.00 元/月</span></span>
+                <span id="indexedMonthlyPaymentWageFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">退休时个人账户累计储存额:<span id="projectedPersonalAccountBalanceResult" class="result-value">0.00 元</span></span>
+                <span id="projectedPersonalAccountBalanceFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">退休时企业/职业年金个人账户累计储存额:<span id="projectedEnterpriseAnnuityBalanceResult" class="result-value">0.00 元</span></span>
+                <span id="projectedEnterpriseAnnuityBalanceFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">退休时个人养老金个人账户累计储存额:<span id="projectedPersonalPensionBalanceResult" class="result-value">0.00 元</span></span>
+                <span id="projectedPersonalPensionBalanceFormula" class="result-formula"></span>
+            </div>
+            <p class="note mt-4 text-center">
+                * 本计算器仅供参考，实际养老金金额可能因政策调整、个人情况变化等因素而有所不同。<br>
+                * 视同缴费年限的计算较为复杂，本计算器采用简化处理。<br>
+                * 税后估算仅考虑个人养老金的3%税率，其他养老金部分默认免税或按现有政策处理。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // 宏观数据知识库
+        const DATA = {
+            // 养老保险个人账户历年记账利率 (%)
+            accountInterestRates: {
+                '2013': 5.8, '2014': 5.0, '2015': 4.9, '2016': 8.31, '2017': 7.12,
+                '2018': 8.29, '2019': 7.61, '2020': 6.05, '2021': 6.69, '2022': 5.56
+            },
+            // 个人账户计发月数表
+            monthlyPaymentFactors: {
+                50: 195, 55: 170, 60: 139, 40: 233, 45: 206, 65: 101
+            }
+        };
+
+        // 将mockAverageWages转为原有结构
+        function buildAverageWagesMap(mockData) {
+            const map = {};
+            mockData.forEach(item => {
+                map[item.region] = {
+                    "2023": item.year2023,
+                    "2024": item.year2024
+                };
+            });
+            return map;
+        }
+        const averageWagesMap = buildAverageWagesMap(window.mockAverageWages);
+
+        // 获取指定年份的社会平均工资
+        function getAverageWage(year, province) {
+            if (averageWagesMap[province] && averageWagesMap[province][year]) {
+                return averageWagesMap[province][year];
+            }
+            // 如果没有具体年份数据，尝试使用最近的可用数据或全国平均
+            const availableYears = Object.keys(averageWagesMap[province] || averageWagesMap['全国']).sort((a, b) => b - a);
+            for (let i = 0; i < availableYears.length; i++) {
+                if (year >= availableYears[i]) {
+                    return averageWagesMap[province] ? averageWagesMap[province][availableYears[i]] : averageWagesMap['全国'][availableYears[i]];
+                }
+            }
+            // 如果都没有，返回一个默认值或抛出错误
+            return averageWagesMap['全国']['2024']; // 默认使用全国2024年数据
+        }
+
+        // 获取DOM元素
+        const genderEl = document.getElementById('gender');
+        const currentAgeEl = document.getElementById('currentAge');
+        const birthYearEl = document.getElementById('birthYear');
+        const retirementAgeEl = document.getElementById('retirementAge');
+        const provinceEl = document.getElementById('province');
+        const workStartDateEl = document.getElementById('workStartDate');
+        const actualPaidYearsEl = document.getElementById('actualPaidYears');
+        const deemedPaidYearsEl = document.getElementById('deemedPaidYears');
+        const currentMonthlyPaymentBaseEl = document.getElementById('currentMonthlyPaymentBase');
+        const avgPaymentIndexEl = document.getElementById('avgPaymentIndex');
+        const personalAccountBalanceEl = document.getElementById('personalAccountBalance');
+
+        const hasEnterpriseAnnuityEl = document.getElementById('hasEnterpriseAnnuity');
+        const enterpriseAnnuityInputsEl = document.getElementById('enterpriseAnnuityInputs');
+        const enterpriseAnnuityBalanceEl = document.getElementById('enterpriseAnnuityBalance');
+        const enterpriseContributionRateEl = document.getElementById('enterpriseContributionRate');
+        const personalContributionRateEl = document.getElementById('personalContributionRate');
+        const enterpriseAnnuityInvestmentReturnEl = document.getElementById('enterpriseAnnuityInvestmentReturn');
+
+        const hasPersonalPensionEl = document.getElementById('hasPersonalPension');
+        const personalPensionInputsEl = document.getElementById('personalPensionInputs');
+        const personalPensionAnnualContributionEl = document.getElementById('personalPensionAnnualContribution');
+        const personalPensionBalanceEl = document.getElementById('personalPensionBalance');
+        const personalPensionInvestmentReturnEl = document.getElementById('personalPensionInvestmentReturn');
+
+        const expectedPersonalWageGrowthEl = document.getElementById('expectedPersonalWageGrowth');
+        const expectedSocialWageGrowthEl = document.getElementById('expectedSocialWageGrowth');
+        const expectedInflationRateEl = document.getElementById('expectedInflationRate');
+        const expectedAccountInterestRateEl = document.getElementById('expectedAccountInterestRate');
+
+        const basicPensionResultEl = document.getElementById('basicPensionResult');
+        const basicPensionFormulaEl = document.getElementById('basicPensionFormula');
+        const enterpriseAnnuityResultEl = document.getElementById('enterpriseAnnuityResult');
+        const enterpriseAnnuityFormulaEl = document.getElementById('enterpriseAnnuityFormula');
+        const personalPensionResultEl = document.getElementById('personalPensionResult');
+        const personalPensionFormulaEl = document.getElementById('personalPensionFormula');
+        const totalPensionResultEl = document.getElementById('totalPensionResult');
+        const totalPensionAfterTaxResultEl = document.getElementById('totalPensionAfterTaxResult');
+        const calculatedRetirementAgeEl = document.getElementById('calculatedRetirementAge');
+        const totalPaymentYearsEl = document.getElementById('totalPaymentYears');
+        const replacementRateEl = document.getElementById('replacementRate');
+
+        // 新增DOM元素
+        const currentAnnualAvgWageResultEl = document.getElementById('currentAnnualAvgWageResult');
+        const currentAnnualAvgWageFormulaEl = document.getElementById('currentAnnualAvgWageFormula');
+        const retirementMonthlyAvgWageResultEl = document.getElementById('retirementMonthlyAvgWageResult');
+        const retirementMonthlyAvgWageFormulaEl = document.getElementById('retirementMonthlyAvgWageFormula');
+        const projectedAvgPaymentIndexResultEl = document.getElementById('projectedAvgPaymentIndexResult');
+        const projectedAvgPaymentIndexFormulaEl = document.getElementById('projectedAvgPaymentIndexFormula');
+        const indexedMonthlyPaymentWageResultEl = document.getElementById('indexedMonthlyPaymentWageResult');
+        const indexedMonthlyPaymentWageFormulaEl = document.getElementById('indexedMonthlyPaymentWageFormula');
+        const projectedPersonalAccountBalanceResultEl = document.getElementById('projectedPersonalAccountBalanceResult');
+        const projectedPersonalAccountBalanceFormulaEl = document.getElementById('projectedPersonalAccountBalanceFormula');
+        const projectedEnterpriseAnnuityBalanceResultEl = document.getElementById('projectedEnterpriseAnnuityBalanceResult');
+        const projectedEnterpriseAnnuityBalanceFormulaEl = document.getElementById('projectedEnterpriseAnnuityBalanceFormula');
+        const projectedPersonalPensionBalanceResultEl = document.getElementById('projectedPersonalPensionBalanceResult');
+        const projectedPersonalPensionBalanceFormulaEl = document.getElementById('projectedPersonalPensionBalanceFormula');
+
+
+        // 事件监听器，用于显示/隐藏补充养老金输入项
+        hasEnterpriseAnnuityEl.addEventListener('change', (event) => {
+            if (event.target.value === 'yes') {
+                enterpriseAnnuityInputsEl.classList.remove('hidden');
+            } else {
+                enterpriseAnnuityInputsEl.classList.add('hidden');
+            }
+        });
+
+        hasPersonalPensionEl.addEventListener('change', (event) => {
+            if (event.target.value === 'yes') {
+                personalPensionInputsEl.classList.remove('hidden');
+            } else {
+                personalPensionInputsEl.classList.add('hidden');
+            }
+        });
+
+        // 根据出生年份和性别计算法定退休年龄
+        function calculateStatutoryRetirementAge(birthYear, gender) {
+            const currentYear = new Date().getFullYear();
+            let statutoryRetirementAge;
+
+            if (gender === 'male') {
+                // 男职工：2025年1月1日起，每四个月延迟一个月，逐步延迟至63周岁
+                const startDelayYear = 2025;
+                const targetAge = 63;
+                const initialAge = 60; // 初始法定退休年龄
+                // 计算达到目标年龄所需的延迟月数
+                const totalDelayMonths = (targetAge - initialAge) * 12;
+                // 每4个月延迟1个月，所以需要 (总延迟月数 / 1) * 4 = 总月数
+                const yearsToReachTarget = totalDelayMonths / 3; // (63-60)*12 / 3 = 12年
+                const birthYearForFullDelay = startDelayYear - yearsToReachTarget; // 2025 - 12 = 2013
+
+                if (birthYear <= birthYearForFullDelay) { // 2013年及以前出生
+                    statutoryRetirementAge = targetAge; // 63岁退休
+                } else if (birthYear < startDelayYear) { // 2014-2024年出生
+                    // 2025年开始延迟，对于2014年出生的，延迟1年，退休年龄61岁
+                    // 2015年出生的，延迟2年，退休年龄62岁
+                    const yearsDelayed = birthYear - birthYearForFullDelay;
+                    statutoryRetirementAge = initialAge + yearsDelayed;
+                } else { // 2025年及以后出生的男性，按照当前政策，退休年龄继续延迟
+                    // 简化处理，暂时按60岁，实际会继续延迟
+                    statutoryRetirementAge = initialAge;
+                }
+            } else { // 女职工
+                const startDelayYear = 2025;
+                const initialAge55 = 55; // 原法定退休年龄55周岁女职工
+                const targetAge58 = 58; // 延迟至58周岁
+
+                const initialAge50 = 50; // 原法定退休年龄50周岁女职工
+                const targetAge55 = 55; // 延迟至55周岁
+
+                // 假设用户是按55岁退休的类型（大多数城镇职工）
+                const totalDelayMonths58 = (targetAge58 - initialAge55) * 12;
+                const yearsToReachTarget58 = totalDelayMonths58 / 3; // (58-55)*12 / 3 = 12年
+                const birthYearForFullDelay58 = startDelayYear - yearsToReachTarget58; // 2025 - 12 = 2013
+
+                // 假设用户是按50岁退休的类型（部分女干部、特殊工种）
+                const totalDelayMonths55 = (targetAge55 - initialAge50) * 12;
+                const yearsToReachTarget55 = totalDelayMonths55 / 6; // (55-50)*12 / 6 = 10年
+                const birthYearForFullDelay55 = startDelayYear - yearsToReachTarget55; // 2025 - 10 = 2015
+
+                // 简化处理，默认按55岁退休的女性计算
+                // 您可以根据实际情况增加选择女职工类型（干部/工人）的选项
+                if (birthYear <= birthYearForFullDelay58) { // 2013年及以前出生
+                    statutoryRetirementAge = targetAge58; // 58岁退休
+                } else if (birthYear < startDelayYear) { // 2014-2024年出生
+                    const yearsDelayed = birthYear - birthYearForFullDelay58;
+                    statutoryRetirementAge = initialAge55 + yearsDelayed;
+                } else {
+                    statutoryRetirementAge = initialAge55; // 暂时按55岁，实际会继续延迟
+                }
+            }
+            // 确保退休年龄不低于当前年龄
+            return Math.max(statutoryRetirementAge, currentAgeEl.value);
+        }
+
+        // 计算养老金主函数
+        function calculatePension() {
+            const currentAge = parseFloat(currentAgeEl.value);
+            const birthYear = parseFloat(birthYearEl.value);
+            const gender = genderEl.value;
+            const province = provinceEl.value;
+            let retirementAge = parseFloat(retirementAgeEl.value);
+
+            // 动态计算法定退休年龄并更新用户输入框，如果用户没有修改则使用计算值
+            const statutoryAge = calculateStatutoryRetirementAge(birthYear, gender);
+            if (retirementAgeEl.value == retirementAgeEl.defaultValue || retirementAge < statutoryAge) { // 如果用户没有修改或者输入值低于法定退休年龄，则使用法定年龄
+                retirementAge = statutoryAge;
+                retirementAgeEl.value = statutoryAge;
+            }
+            calculatedRetirementAgeEl.textContent = `${retirementAge} 岁`;
+
+            const workStartDate = parseFloat(workStartDateEl.value);
+            const actualPaidYears = parseFloat(actualPaidYearsEl.value);
+            const deemedPaidYears = parseFloat(deemedPaidYearsEl.value);
+            const currentMonthlyPaymentBase = parseFloat(currentMonthlyPaymentBaseEl.value);
+            const avgPaymentIndex = parseFloat(avgPaymentIndexEl.value);
+            const personalAccountBalance = parseFloat(personalAccountBalanceEl.value);
+
+            const expectedPersonalWageGrowth = parseFloat(expectedPersonalWageGrowthEl.value) / 100;
+            const expectedSocialWageGrowth = parseFloat(expectedSocialWageGrowthEl.value) / 100;
+            const expectedInflationRate = parseFloat(expectedInflationRateEl.value) / 100;
+            const expectedAccountInterestRate = parseFloat(expectedAccountInterestRateEl.value) / 100;
+
+            const hasEnterpriseAnnuity = hasEnterpriseAnnuityEl.value === 'yes';
+            const enterpriseAnnuityBalance = parseFloat(enterpriseAnnuityBalanceEl.value);
+            const enterpriseContributionRate = parseFloat(enterpriseContributionRateEl.value) / 100;
+            const personalContributionRate = parseFloat(personalContributionRateEl.value) / 100;
+            const enterpriseAnnuityInvestmentReturn = parseFloat(enterpriseAnnuityInvestmentReturnEl.value) / 100;
+
+            const hasPersonalPension = hasPersonalPensionEl.value === 'yes';
+            const personalPensionAnnualContribution = parseFloat(personalPensionAnnualContributionEl.value);
+            const personalPensionBalance = parseFloat(personalPensionBalanceEl.value);
+            const personalPensionInvestmentReturn = parseFloat(personalPensionInvestmentReturnEl.value) / 100;
+
+            // 1. 计算第一支柱：基本养老保险
+            let basicPension = 0;
+            let individualAccountPension = 0;
+            let transitionalPension = 0; // 过渡性养老金
+            let basicPensionFormulaText = '';
+            let individualAccountFormulaText = '';
+            let transitionalPensionFormulaText = '';
+
+            const yearsToRetirement = retirementAge - currentAge;
+            const totalPaymentYears = actualPaidYears + deemedPaidYears + yearsToRetirement;
+            totalPaymentYearsEl.textContent = `${totalPaymentYears.toFixed(0)} 年`;
+
+            if (totalPaymentYears >= 15) { // 满足最低缴费年限
+                const currentYear = new Date().getFullYear();
+                // 当前社会年平均工资
+                const currentAnnualAvgWage = getAverageWage(currentYear, province);
+                currentAnnualAvgWageResultEl.textContent = `${currentAnnualAvgWage.toFixed(2)} 元/年`;
+                currentAnnualAvgWageFormulaEl.innerHTML = `公式：<br>当前社会年平均工资 = 根据您选择的地区和当前年份获取的社会年平均工资数据`;
+
+                // 预测退休时的社会平均工资
+                let retirementAnnualAvgWage = currentAnnualAvgWage;
+                for (let i = 0; i < yearsToRetirement; i++) {
+                    retirementAnnualAvgWage *= (1 + expectedSocialWageGrowth);
+                }
+                const retirementMonthlyAvgWage = retirementAnnualAvgWage / 12;
+
+                // 显示退休时社会月平均工资及其公式
+                retirementMonthlyAvgWageResultEl.textContent = `${retirementMonthlyAvgWage.toFixed(2)} 元/月`;
+                retirementMonthlyAvgWageFormulaEl.innerHTML = `公式：<br>退休时社会月平均工资 = 当前社会年平均工资 (${currentAnnualAvgWage.toFixed(2)}) × (1 + 预期社会平均工资增长率 (${(expectedSocialWageGrowth*100).toFixed(1)}%)) ^ 距离退休年限 (${yearsToRetirement}年) ÷ 12`;
+
+
+                // 本人指数化月平均缴费工资
+                // 简化处理：假设未来缴费工资基数按个人工资增长率增长，并计算平均指数
+                let futurePaymentBase = currentMonthlyPaymentBase;
+                let totalIndexSum = avgPaymentIndex * actualPaidYears; // 现有缴费指数总和
+                let indexCalculationDetails = `历史缴费指数 (${avgPaymentIndex.toFixed(2)}) × 实际缴费年限 (${actualPaidYears}年)`;
+
+                for (let i = 0; i < yearsToRetirement; i++) {
+                    futurePaymentBase *= (1 + expectedPersonalWageGrowth);
+                    const futureAnnualAvgWage = getAverageWage(currentYear + i + 1, province);
+                    const futureMonthlyAvgWage = futureAnnualAvgWage / 12;
+                    // 防止除以零或过小的值
+                    const index = futureMonthlyAvgWage > 0 ? (futurePaymentBase / futureMonthlyAvgWage) : 0;
+                    totalIndexSum += index;
+                    indexCalculationDetails += ` + (未来第${i+1}年缴费工资基数 (${futurePaymentBase.toFixed(2)}) / 未来第${i+1}年社会月平均工资 (${futureMonthlyAvgWage.toFixed(2)}))`;
+                }
+                const projectedAvgPaymentIndex = totalPaymentYears > 0 ? (totalIndexSum / totalPaymentYears) : 0;
+                const indexedMonthlyPaymentWage = retirementMonthlyAvgWage * projectedAvgPaymentIndex;
+
+                // 显示本人平均缴费工资指数及其公式
+                projectedAvgPaymentIndexResultEl.textContent = `${projectedAvgPaymentIndex.toFixed(2)}`;
+                projectedAvgPaymentIndexFormulaEl.innerHTML = `公式：<br>本人平均缴费工资指数 = (${indexCalculationDetails}) ÷ 总缴费年限 (${totalPaymentYears.toFixed(0)}年)<br>
+                                                                *注：历史平均缴费工资指数可从社保平台查询，若无则默认为1。`;
+
+                // 显示本人指数化月平均缴费工资及其公式
+                indexedMonthlyPaymentWageResultEl.textContent = `${indexedMonthlyPaymentWage.toFixed(2)} 元/月`;
+                indexedMonthlyPaymentWageFormulaEl.innerHTML = `公式：<br>本人指数化月平均缴费工资 = 退休时社会月平均工资 (${retirementMonthlyAvgWage.toFixed(2)}) × 本人平均缴费工资指数 (${projectedAvgPaymentIndex.toFixed(2)})`;
+
+
+                // 基础养老金
+                basicPension = (retirementMonthlyAvgWage + indexedMonthlyPaymentWage) / 2 * totalPaymentYears * 0.01;
+                basicPensionFormulaText = `基础养老金 = (退休时社会月平均工资 (${retirementMonthlyAvgWage.toFixed(2)}) + 本人指数化月平均缴费工资 (${indexedMonthlyPaymentWage.toFixed(2)})) ÷ 2 × 缴费年限 (${totalPaymentYears.toFixed(0)}年) × 1%`;
+
+                // 个人账户养老金
+                // 预测个人账户累计储存额 (含利息)
+                let projectedPersonalAccountBalance = personalAccountBalance;
+                const personalContributionRateBasic = 0.08; // 个人缴费比例 8%
+                let currentMonthlyWage = currentMonthlyPaymentBase;
+                let personalAccountAccumulationDetails = `初始个人账户余额 (${personalAccountBalance.toFixed(2)})`;
+
+                for (let i = 0; i < yearsToRetirement; i++) {
+                    currentMonthlyWage *= (1 + expectedPersonalWageGrowth);
+                    const annualContribution = currentMonthlyWage * 12 * personalContributionRateBasic;
+                    projectedPersonalAccountBalance = (projectedPersonalAccountBalance + annualContribution) * (1 + expectedAccountInterestRate);
+                    personalAccountAccumulationDetails += ` + (未来第${i+1}年缴费工资基数 (${currentMonthlyWage.toFixed(2)}) × 12个月 × 个人缴费比例 (${(personalContributionRateBasic*100).toFixed(1)}%)) × (1 + 预期记账利率 (${(expectedAccountInterestRate*100).toFixed(1)}%))`;
+                }
+                projectedPersonalAccountBalanceResultEl.textContent = `${projectedPersonalAccountBalance.toFixed(2)} 元`;
+                projectedPersonalAccountBalanceFormulaEl.innerHTML = `计算过程：<br>退休时个人账户累计储存额 = 初始个人账户余额 + 每年个人缴费 × (1 + 预期记账利率) ^ 剩余缴费年限`;
+
+
+                const monthlyPaymentFactor = DATA.monthlyPaymentFactors[retirementAge] || DATA.monthlyPaymentFactors[60]; // 默认60岁
+                individualAccountPension = projectedPersonalAccountBalance / monthlyPaymentFactor;
+                individualAccountFormulaText = `个人账户养老金 = 退休时个人账户累计储存额 (${projectedPersonalAccountBalance.toFixed(2)}) ÷ 计发月数 (${monthlyPaymentFactor}个月)`;
+
+                // 过渡性养老金 (简化处理，假设视同缴费年限的指数化月平均工资为退休时社会平均工资)
+                if (deemedPaidYears > 0) {
+                    // 使用1.3%作为过渡系数，根据资料也有1.4%
+                    transitionalPension = indexedMonthlyPaymentWage * deemedPaidYears * 0.013;
+                    transitionalPensionFormulaText = `过渡性养老金 = 本人指数化月平均工资 (${indexedMonthlyPaymentWage.toFixed(2)}) × 视同缴费年限 (${deemedPaidYears}年) × 1.3%`;
+                }
+            }
+
+            const totalBasicPension = basicPension + individualAccountPension + transitionalPension;
+            basicPensionResultEl.textContent = `${totalBasicPension.toFixed(2)} 元/月`;
+            basicPensionFormulaEl.innerHTML = `公式：<br>${basicPensionFormulaText}<br>${individualAccountFormulaText}<br>${transitionalPensionFormulaText}`;
+
+            // 2. 计算第二支柱：企业/职业年金
+            let totalEnterpriseAnnuity = 0;
+            let enterpriseAnnuityFormulaText = '';
+            let projectedEnterpriseAnnuityBalance = 0;
+            if (hasEnterpriseAnnuity) {
+                projectedEnterpriseAnnuityBalance = enterpriseAnnuityBalance;
+                let currentMonthlyWageForAnnuity = currentMonthlyPaymentBase; // 假设与基本养老保险缴费基数一致
+                let enterpriseAnnuityAccumulationDetails = `初始企业/职业年金余额 (${enterpriseAnnuityBalance.toFixed(2)})`;
+
+                for (let i = 0; i < yearsToRetirement; i++) {
+                    currentMonthlyWageForAnnuity *= (1 + expectedPersonalWageGrowth);
+                    const annualContribution = currentMonthlyWageForAnnuity * 12 * (enterpriseContributionRate + personalContributionRate);
+                    projectedEnterpriseAnnuityBalance = (projectedEnterpriseAnnuityBalance + annualContribution) * (1 + enterpriseAnnuityInvestmentReturn);
+                    enterpriseAnnuityAccumulationDetails += ` + (未来第${i+1}年缴费工资基数 (${currentMonthlyWageForAnnuity.toFixed(2)}) × 12个月 × (单位缴费比例 (${(enterpriseContributionRate*100).toFixed(1)}%) + 个人缴费比例 (${(personalContributionRate*100).toFixed(1)}%))) × (1 + 预期投资收益率 (${(enterpriseAnnuityInvestmentReturn*100).toFixed(1)}%))`;
+                }
+                projectedEnterpriseAnnuityBalanceResultEl.textContent = `${projectedEnterpriseAnnuityBalance.toFixed(2)} 元`;
+                projectedEnterpriseAnnuityBalanceFormulaEl.innerHTML = `计算过程：<br>退休时企业/职业年金个人账户累计储存额 = 初始余额 + 每年缴费总额 × (1 + 预期投资收益率) ^ 剩余缴费年限`;
+
+
+                const monthlyPaymentFactor = DATA.monthlyPaymentFactors[retirementAge] || DATA.monthlyPaymentFactors[60]; // 默认60岁
+                totalEnterpriseAnnuity = projectedEnterpriseAnnuityBalance / monthlyPaymentFactor;
+                enterpriseAnnuityFormulaText = `企业/职业年金 = 退休时企业/职业年金个人账户累计储存额 (${projectedEnterpriseAnnuityBalance.toFixed(2)}) ÷ 计发月数 (${monthlyPaymentFactor}个月)`;
+            } else {
+                projectedEnterpriseAnnuityBalanceResultEl.textContent = `未参加`;
+                projectedEnterpriseAnnuityBalanceFormulaEl.innerHTML = ``;
+            }
+            enterpriseAnnuityResultEl.textContent = `${totalEnterpriseAnnuity.toFixed(2)} 元/月`;
+            enterpriseAnnuityFormulaEl.innerHTML = `公式：<br>${enterpriseAnnuityFormulaText}`;
+
+
+            // 3. 计算第三支柱：个人养老金
+            let totalPersonalPension = 0;
+            let personalPensionTaxSaving = 0;
+            let personalPensionFormulaText = '';
+            let projectedPersonalPensionBalance = 0;
+            if (hasPersonalPension) {
+                projectedPersonalPensionBalance = personalPensionBalance;
+                const annualContribution = personalPensionAnnualContribution; // 每年缴费额
+                let personalPensionAccumulationDetails = `初始个人养老金余额 (${personalPensionBalance.toFixed(2)})`;
+
+                for (let i = 0; i < yearsToRetirement; i++) {
+                    projectedPersonalPensionBalance = (projectedPersonalPensionBalance + annualContribution) * (1 + personalPensionInvestmentReturn);
+                    personalPensionAccumulationDetails += ` + (每年缴费额 (${annualContribution.toFixed(2)}) × (1 + 预期投资收益率 (${(personalPensionInvestmentReturn*100).toFixed(1)}%)))`;
+                }
+                projectedPersonalPensionBalanceResultEl.textContent = `${projectedPersonalPensionBalance.toFixed(2)} 元`;
+                projectedPersonalPensionBalanceFormulaEl.innerHTML = `计算过程：<br>退休时个人养老金个人账户累计储存额 = 初始余额 + 每年缴费额 × (1 + 预期投资收益率) ^ 剩余缴费年限`;
+
+
+                const monthlyPaymentFactor = DATA.monthlyPaymentFactors[retirementAge] || DATA.monthlyPaymentFactors[60]; // 默认60岁
+                totalPersonalPension = projectedPersonalPensionBalance / monthlyPaymentFactor;
+                personalPensionFormulaText = `个人养老金 = 退休时个人养老金个人账户累计储存额 (${projectedPersonalPensionBalance.toFixed(2)}) ÷ 计发月数 (${monthlyPaymentFactor}个月)`;
+                // 领取环节按3%税率征收
+                personalPensionTaxSaving = totalPersonalPension * 0.03; // 这是需要缴纳的税款
+            } else {
+                projectedPersonalPensionBalanceResultEl.textContent = `未参加`;
+                projectedPersonalPensionBalanceFormulaEl.innerHTML = ``;
+            }
+            personalPensionResultEl.textContent = `${totalPersonalPension.toFixed(2)} 元/月`;
+            personalPensionFormulaEl.innerHTML = `公式：<br>${personalPensionFormulaText}`;
+
+            // 总计每月养老金 (税前)
+            const totalPensionBeforeTax = totalBasicPension + totalEnterpriseAnnuity + totalPersonalPension;
+            totalPensionResultEl.textContent = `${totalPensionBeforeTax.toFixed(2)} 元/月`;
+
+            // 总计每月养老金 (税后估算)
+            // 假设基本养老金和企业/职业年金领取时免税或已在缴费环节处理，仅个人养老金按3%征税
+            const totalPensionAfterTax = totalPensionBeforeTax - personalPensionTaxSaving;
+            totalPensionAfterTaxResultEl.textContent = `${totalPensionAfterTax.toFixed(2)} 元/月`;
+
+            // 养老金替代率
+            const currentMonthlyWage = parseFloat(currentMonthlyPaymentBaseEl.value);
+            const replacementRate = (totalPensionBeforeTax / currentMonthlyWage) * 100;
+            replacementRateEl.textContent = `${replacementRate.toFixed(2)} %`;
+        }
+
+        // 页面加载时执行一次计算
+        window.onload = () => {
+            calculatePension();
+        };
+    </script>
+</body>
+</html>
