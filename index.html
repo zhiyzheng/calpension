@@ -122,6 +122,72 @@
             grid-template-columns: repeat(2, 1fr);
             gap: 1rem;
         }
+        .table-row {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #ebf4ff;
+        }
+        .table-row:last-child {
+            border-bottom: none;
+        }
+        .table-row input {
+            margin-bottom: 0; /* Remove default margin from inputs in table rows */
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px;
+            max-height: 80%;
+            overflow-y: auto;
+            position: relative;
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #4a5568;
+        }
+        .modal-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .modal-table th, .modal-table td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .modal-table th {
+            background-color: #f0f4f8;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .modal-table tr:nth-child(even) {
+            background-color: #f7fafc;
+        }
+
         @media (max-width: 768px) {
             .grid-cols-2 {
                 grid-template-columns: 1fr;
@@ -191,10 +257,35 @@
                     <label for="currentMonthlyPaymentBase">当前月缴费工资基数 (元):</label>
                     <input type="number" id="currentMonthlyPaymentBase" value="8000" min="0" class="rounded-lg">
                 </div>
-                <div>
-                    <label for="avgPaymentIndex">历史平均缴费工资指数 (默认为1):</label>
-                    <input type="number" id="avgPaymentIndex" value="1" step="0.01" min="0" class="rounded-lg">
-                    <p class="note">反映个人缴费水平与社会平均工资关系，可从社保平台查询。</p>
+                <div class="col-span-2"> <!-- Span two columns for the new input method selection -->
+                    <label>历史缴费工资指数输入方式:</label>
+                    <div class="flex items-center mb-2">
+                        <input type="radio" id="inputIndexMethod" name="historicalWageInputMethod" value="index" checked class="mr-2">
+                        <label for="inputIndexMethod" class="mb-0 text-gray-700">直接输入历史平均缴费工资指数</label>
+                    </div>
+                    <div class="flex items-center mb-4">
+                        <input type="radio" id="inputTableMethod" name="historicalWageInputMethod" value="table" class="mr-2">
+                        <label for="inputTableMethod" class="mb-0 text-gray-700">填写每年月缴费工资数据</label>
+                    </div>
+
+                    <div id="indexInputContainer">
+                        <label for="avgPaymentIndex">历史平均缴费工资指数 (默认为1):</label>
+                        <input type="number" id="avgPaymentIndex" value="1" step="0.01" min="0" class="rounded-lg">
+                        <p class="note">反映个人缴费水平与社会平均工资关系，可从社保平台查询。</p>
+                    </div>
+
+                    <div id="tableInputContainer" class="hidden">
+                        <label class="mb-2 text-gray-700">历史每年月缴费工资数据:</label>
+                        <div id="historicalWageTable" class="border border-gray-300 rounded-lg overflow-hidden mb-2">
+                            <div class="flex bg-gray-200 p-2 font-semibold text-sm text-gray-700">
+                                <span class="w-1/3">年份</span>
+                                <span class="w-2/3 text-right">月缴费工资 (元)</span>
+                            </div>
+                            <!-- Rows will be added here by JS -->
+                        </div>
+                        <button type="button" id="addWageRowBtn" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg w-auto text-sm hover:bg-gray-300 transition-colors">添加一行</button>
+                        <p class="note mt-2">请填写您过去每年的实际月缴费工资。如果数据不全，可从社保平台查询或估算。</p>
+                    </div>
                 </div>
                 <div>
                     <label for="personalAccountBalance">个人账户累计储存额 (截至当前，元):</label>
@@ -292,6 +383,10 @@
                 <span class="result-label text-red-700">总计每月养老金 (税后估算):<span id="totalPensionAfterTaxResult" class="result-value text-red-700">0.00 元/月</span></span>
             </div>
             <div class="result-item">
+                <span class="result-label text-green-700">总计每月养老金 (折算购买力):<span id="totalPensionPurchasingPowerResult" class="result-value text-green-700">0.00 元/月</span></span>
+                <span id="totalPensionPurchasingPowerFormula" class="result-formula"></span>
+            </div>
+            <div class="result-item">
                 <span class="result-label">预计退休年龄:<span id="calculatedRetirementAge" class="result-value">-- 岁</span></span>
             </div>
             <div class="result-item">
@@ -317,7 +412,13 @@
                 <span id="indexedMonthlyPaymentWageFormula" class="result-formula"></span>
             </div>
             <div class="result-item">
-                <span class="result-label">退休时个人账户累计储存额:<span id="projectedPersonalAccountBalanceResult" class="result-value">0.00 元</span></span>
+                <span class="result-label">
+                    退休时个人账户累计储存额:
+                    <span class="flex items-center">
+                        <span id="projectedPersonalAccountBalanceResult" class="result-value mr-2">0.00 元</span>
+                        <button id="viewAnnualPersonalContributionBtn" class="bg-blue-200 text-blue-800 text-xs px-2 py-1 rounded-full hover:bg-blue-300 transition-colors">查看明细</button>
+                    </span>
+                </span>
                 <span id="projectedPersonalAccountBalanceFormula" class="result-formula"></span>
             </div>
             <div class="result-item">
@@ -336,10 +437,30 @@
         </div>
     </div>
 
+    <!-- Modal for Annual Personal Contributions -->
+    <div id="annualContributionModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="closeModalBtn">&times;</button>
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">每年个人缴费明细 (基本养老保险)</h3>
+            <table class="modal-table">
+                <thead>
+                    <tr>
+                        <th>年份</th>
+                        <th>预计月缴费工资基数 (元)</th>
+                        <th>每年个人缴费 (元)</th>
+                    </tr>
+                </thead>
+                <tbody id="annualContributionTableBody">
+                    <!-- Data will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+            <p class="note mt-4">此表展示的是从当前到退休，每年个人缴费（按月缴费工资基数8%）的预计金额。月缴费工资基数会随"预期个人工资增长率"而逐年增长。</p>
+        </div>
+    </div>
+
     <script>
-        // 宏观数据知识库
+        // 养老保险个人账户历年记账利率 (%)
         const DATA = {
-            // 养老保险个人账户历年记账利率 (%)
             accountInterestRates: {
                 '2013': 5.8, '2014': 5.0, '2015': 4.9, '2016': 8.31, '2017': 7.12,
                 '2018': 8.29, '2019': 7.61, '2020': 6.05, '2021': 6.69, '2022': 5.56
@@ -437,6 +558,25 @@
         const projectedEnterpriseAnnuityBalanceFormulaEl = document.getElementById('projectedEnterpriseAnnuityBalanceFormula');
         const projectedPersonalPensionBalanceResultEl = document.getElementById('projectedPersonalPensionBalanceResult');
         const projectedPersonalPensionBalanceFormulaEl = document.getElementById('projectedPersonalPensionBalanceFormula');
+        const totalPensionPurchasingPowerResultEl = document.getElementById('totalPensionPurchasingPowerResult');
+        const totalPensionPurchasingPowerFormulaEl = document.getElementById('totalPensionPurchasingPowerFormula');
+
+
+        // 新增历史缴费工资指数输入方式相关DOM
+        const inputIndexMethodEl = document.getElementById('inputIndexMethod');
+        const inputTableMethodEl = document.getElementById('inputTableMethod');
+        const indexInputContainerEl = document.getElementById('indexInputContainer');
+        const tableInputContainerEl = document.getElementById('tableInputContainer');
+        const historicalWageTableEl = document.getElementById('historicalWageTable');
+        const addWageRowBtnEl = document.getElementById('addWageRowBtn');
+
+        // Modal elements
+        const viewAnnualPersonalContributionBtn = document.getElementById('viewAnnualPersonalContributionBtn');
+        const annualContributionModal = document.getElementById('annualContributionModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const annualContributionTableBody = document.getElementById('annualContributionTableBody');
+
+        let annualPersonalContributionData = []; // To store data for the modal
 
 
         // 事件监听器，用于显示/隐藏补充养老金输入项
@@ -456,6 +596,77 @@
             }
         });
 
+        // 历史缴费工资指数输入方式切换
+        inputIndexMethodEl.addEventListener('change', () => {
+            indexInputContainerEl.classList.remove('hidden');
+            tableInputContainerEl.classList.add('hidden');
+            // 重新计算以更新结果
+            calculatePension();
+        });
+
+        inputTableMethodEl.addEventListener('change', () => {
+            indexInputContainerEl.classList.add('hidden');
+            tableInputContainerEl.classList.remove('hidden');
+            // 预填充表格
+            populateHistoricalWageTable();
+            // 重新计算以更新结果
+            calculatePension();
+        });
+
+        addWageRowBtnEl.addEventListener('click', () => {
+            addWageRow();
+            calculatePension(); // Re-calculate after adding a row
+        });
+
+        // Modal event listeners
+        viewAnnualPersonalContributionBtn.addEventListener('click', () => {
+            displayAnnualPersonalContributions();
+            annualContributionModal.classList.remove('hidden');
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            annualContributionModal.classList.add('hidden');
+        });
+
+        // Close modal when clicking outside
+        annualContributionModal.addEventListener('click', (event) => {
+            if (event.target === annualContributionModal) {
+                annualContributionModal.classList.add('hidden');
+            }
+        });
+
+
+        // 动态添加历史缴费工资行
+        function addWageRow(year = new Date().getFullYear() - 1, monthlyWage = 0) {
+            const rowDiv = document.createElement('div');
+            rowDiv.classList.add('table-row', 'flex', 'items-center', 'p-2', 'border-b', 'border-gray-200');
+            rowDiv.innerHTML = `
+                <input type="number" class="w-1/3 p-1 border rounded-md text-sm" value="${year}" min="1950" max="${new Date().getFullYear() - 1}" />
+                <input type="number" class="w-2/3 p-1 border rounded-md text-sm text-right ml-2" value="${monthlyWage}" min="0" />
+            `;
+            historicalWageTableEl.appendChild(rowDiv);
+        }
+
+        // 预填充历史缴费工资表格
+        function populateHistoricalWageTable() {
+            historicalWageTableEl.innerHTML = `
+                <div class="flex bg-gray-200 p-2 font-semibold text-sm text-gray-700">
+                    <span class="w-1/3">年份</span>
+                    <span class="w-2/3 text-right">月缴费工资 (元)</span>
+                </div>
+            `; // Clear existing rows
+            const currentYear = new Date().getFullYear();
+            const actualPaidYears = parseFloat(actualPaidYearsEl.value);
+            const workStartDate = parseFloat(workStartDateEl.value);
+
+            // Populate years from workStartDate up to currentYear - 1, capped by actualPaidYears
+            const startYear = Math.max(workStartDate, currentYear - actualPaidYears);
+            for (let year = startYear; year < currentYear; year++) {
+                addWageRow(year, 0); // Default to 0, user can fill in
+            }
+        }
+
+
         // 根据出生年份和性别计算法定退休年龄
         function calculateStatutoryRetirementAge(birthYear, gender) {
             const currentYear = new Date().getFullYear();
@@ -468,7 +679,7 @@
                 const initialAge = 60; // 初始法定退休年龄
                 // 计算达到目标年龄所需的延迟月数
                 const totalDelayMonths = (targetAge - initialAge) * 12;
-                // 每4个月延迟1个月，所以需要 (总延迟月数 / 1) * 4 = 总月数
+                // 每4个月延迟1个月，所以需要 (总延迟月数 / 1) * 4 = 总年数
                 const yearsToReachTarget = totalDelayMonths / 3; // (63-60)*12 / 3 = 12年
                 const birthYearForFullDelay = startDelayYear - yearsToReachTarget; // 2025 - 12 = 2013
 
@@ -533,7 +744,7 @@
             calculatedRetirementAgeEl.textContent = `${retirementAge} 岁`;
 
             const workStartDate = parseFloat(workStartDateEl.value);
-            const actualPaidYears = parseFloat(actualPaidYearsEl.value);
+            let actualPaidYears = parseFloat(actualPaidYearsEl.value); // 实际缴费年限可能根据表格输入而变化
             const deemedPaidYears = parseFloat(deemedPaidYearsEl.value);
             const currentMonthlyPaymentBase = parseFloat(currentMonthlyPaymentBaseEl.value);
             const avgPaymentIndex = parseFloat(avgPaymentIndexEl.value);
@@ -564,8 +775,47 @@
             let transitionalPensionFormulaText = '';
 
             const yearsToRetirement = retirementAge - currentAge;
-            const totalPaymentYears = actualPaidYears + deemedPaidYears + yearsToRetirement;
+            let totalPaymentYears = actualPaidYears + deemedPaidYears + yearsToRetirement; // 初始总缴费年限
+
+            // 处理历史缴费工资指数的计算
+            let historicalIndexSum = 0;
+            let historicalActualPaidYears = 0;
+            let indexCalculationDetails = '';
+
+            if (inputIndexMethodEl.checked) { // 使用直接输入的平均指数
+                historicalIndexSum = avgPaymentIndex * actualPaidYears;
+                indexCalculationDetails = `历史缴费指数 (${avgPaymentIndex.toFixed(2)}) × 实际缴费年限 (${actualPaidYears}年)`;
+                historicalActualPaidYears = actualPaidYears; // 历史缴费年限就是用户输入的实际缴费年限
+            } else { // 使用表格输入的每年工资数据
+                const historicalWageRows = historicalWageTableEl.querySelectorAll('.table-row');
+                historicalActualPaidYears = historicalWageRows.length; // 实际缴费年限是表格的行数
+                actualPaidYearsEl.value = historicalActualPaidYears; // 更新实际缴费年限输入框
+                totalPaymentYears = historicalActualPaidYears + deemedPaidYears + yearsToRetirement; // 更新总缴费年限
+
+                indexCalculationDetails = '历史每年缴费工资指数之和: ';
+                let firstRow = true;
+                historicalWageRows.forEach(row => {
+                    const year = parseFloat(row.children[0].value);
+                    const monthlyWage = parseFloat(row.children[1].value);
+                    const historicalAnnualAvgWage = getAverageWage(year, province);
+                    const historicalMonthlyAvgWage = historicalAnnualAvgWage / 12;
+
+                    let yearIndex = 0;
+                    if (historicalMonthlyAvgWage > 0) {
+                        yearIndex = monthlyWage / historicalMonthlyAvgWage;
+                    }
+                    historicalIndexSum += yearIndex;
+
+                    if (!firstRow) {
+                        indexCalculationDetails += ' + ';
+                    }
+                    indexCalculationDetails += `(年份${year}月缴费工资 (${monthlyWage.toFixed(2)}) / 年份${year}社会月平均工资 (${historicalMonthlyAvgWage.toFixed(2)}))`;
+                    firstRow = false;
+                });
+            }
+
             totalPaymentYearsEl.textContent = `${totalPaymentYears.toFixed(0)} 年`;
+
 
             if (totalPaymentYears >= 15) { // 满足最低缴费年限
                 const currentYear = new Date().getFullYear();
@@ -587,10 +837,9 @@
 
 
                 // 本人指数化月平均缴费工资
-                // 简化处理：假设未来缴费工资基数按个人工资增长率增长，并计算平均指数
+                let futureIndexSum = 0;
+                let futureIndexCalculationDetails = '';
                 let futurePaymentBase = currentMonthlyPaymentBase;
-                let totalIndexSum = avgPaymentIndex * actualPaidYears; // 现有缴费指数总和
-                let indexCalculationDetails = `历史缴费指数 (${avgPaymentIndex.toFixed(2)}) × 实际缴费年限 (${actualPaidYears}年)`;
 
                 for (let i = 0; i < yearsToRetirement; i++) {
                     futurePaymentBase *= (1 + expectedPersonalWageGrowth);
@@ -598,16 +847,18 @@
                     const futureMonthlyAvgWage = futureAnnualAvgWage / 12;
                     // 防止除以零或过小的值
                     const index = futureMonthlyAvgWage > 0 ? (futurePaymentBase / futureMonthlyAvgWage) : 0;
-                    totalIndexSum += index;
-                    indexCalculationDetails += ` + (未来第${i+1}年缴费工资基数 (${futurePaymentBase.toFixed(2)}) / 未来第${i+1}年社会月平均工资 (${futureMonthlyAvgWage.toFixed(2)}))`;
+                    futureIndexSum += index;
+                    futureIndexCalculationDetails += ` + (未来第${i+1}年缴费工资基数 (${futurePaymentBase.toFixed(2)}) / 未来第${i+1}年社会月平均工资 (${futureMonthlyAvgWage.toFixed(2)}))`;
                 }
-                const projectedAvgPaymentIndex = totalPaymentYears > 0 ? (totalIndexSum / totalPaymentYears) : 0;
+                
+                const totalWeightedYears = historicalActualPaidYears + yearsToRetirement + deemedPaidYears; // 考虑视同缴费年限的权重
+                const projectedAvgPaymentIndex = totalWeightedYears > 0 ? ((historicalIndexSum + futureIndexSum + deemedPaidYears * 1) / totalWeightedYears) : 0; // 视同缴费年限指数按1计算
                 const indexedMonthlyPaymentWage = retirementMonthlyAvgWage * projectedAvgPaymentIndex;
 
                 // 显示本人平均缴费工资指数及其公式
                 projectedAvgPaymentIndexResultEl.textContent = `${projectedAvgPaymentIndex.toFixed(2)}`;
-                projectedAvgPaymentIndexFormulaEl.innerHTML = `公式：<br>本人平均缴费工资指数 = (${indexCalculationDetails}) ÷ 总缴费年限 (${totalPaymentYears.toFixed(0)}年)<br>
-                                                                *注：历史平均缴费工资指数可从社保平台查询，若无则默认为1。`;
+                projectedAvgPaymentIndexFormulaEl.innerHTML = `公式：<br>本人平均缴费工资指数 = (${indexCalculationDetails}${futureIndexCalculationDetails} + 视同缴费年限 (${deemedPaidYears}年) × 1) ÷ 总缴费年限 (${totalPaymentYears.toFixed(0)}年)<br>
+                                                                *注：历史平均缴费工资指数或每年缴费数据可从社保平台查询，若无则默认为1。视同缴费年限的指数按1计算。`;
 
                 // 显示本人指数化月平均缴费工资及其公式
                 indexedMonthlyPaymentWageResultEl.textContent = `${indexedMonthlyPaymentWage.toFixed(2)} 元/月`;
@@ -625,14 +876,23 @@
                 let currentMonthlyWage = currentMonthlyPaymentBase;
                 let personalAccountAccumulationDetails = `初始个人账户余额 (${personalAccountBalance.toFixed(2)})`;
 
+                annualPersonalContributionData = []; // Clear previous data
                 for (let i = 0; i < yearsToRetirement; i++) {
+                    const year = currentYear + i;
                     currentMonthlyWage *= (1 + expectedPersonalWageGrowth);
                     const annualContribution = currentMonthlyWage * 12 * personalContributionRateBasic;
                     projectedPersonalAccountBalance = (projectedPersonalAccountBalance + annualContribution) * (1 + expectedAccountInterestRate);
-                    personalAccountAccumulationDetails += ` + (未来第${i+1}年缴费工资基数 (${currentMonthlyWage.toFixed(2)}) × 12个月 × 个人缴费比例 (${(personalContributionRateBasic*100).toFixed(1)}%)) × (1 + 预期记账利率 (${(expectedAccountInterestRate*100).toFixed(1)}%))`;
+                    personalAccountAccumulationDetails += ` + (未来第${i+1}年个人缴费 (${annualContribution.toFixed(2)} 元, 即：未来第${i+1}年缴费工资基数 (${currentMonthlyWage.toFixed(2)}) × 12个月 × 个人缴费比例 (${(personalContributionRateBasic*100).toFixed(1)}%)))`;
+                    
+                    annualPersonalContributionData.push({
+                        year: year,
+                        monthlyWageBase: currentMonthlyWage,
+                        annualContribution: annualContribution
+                    });
                 }
                 projectedPersonalAccountBalanceResultEl.textContent = `${projectedPersonalAccountBalance.toFixed(2)} 元`;
-                projectedPersonalAccountBalanceFormulaEl.innerHTML = `计算过程：<br>退休时个人账户累计储存额 = 初始个人账户余额 + 每年个人缴费 × (1 + 预期记账利率) ^ 剩余缴费年限`;
+                projectedPersonalAccountBalanceFormulaEl.innerHTML = `计算过程：<br>退休时个人账户累计储存额 = 初始个人账户余额 + 每年个人缴费 × (1 + 预期记账利率) ^ 剩余缴费年限<br>
+                                                                其中：每年个人缴费 = 月缴费工资基数 × 12个月 × 个人缴费比例 (8%)。此处的月缴费工资基数会随着"预期个人工资增长率"而逐年增长。`;
 
 
                 const monthlyPaymentFactor = DATA.monthlyPaymentFactors[retirementAge] || DATA.monthlyPaymentFactors[60]; // 默认60岁
@@ -664,10 +924,11 @@
                     currentMonthlyWageForAnnuity *= (1 + expectedPersonalWageGrowth);
                     const annualContribution = currentMonthlyWageForAnnuity * 12 * (enterpriseContributionRate + personalContributionRate);
                     projectedEnterpriseAnnuityBalance = (projectedEnterpriseAnnuityBalance + annualContribution) * (1 + enterpriseAnnuityInvestmentReturn);
-                    enterpriseAnnuityAccumulationDetails += ` + (未来第${i+1}年缴费工资基数 (${currentMonthlyWageForAnnuity.toFixed(2)}) × 12个月 × (单位缴费比例 (${(enterpriseContributionRate*100).toFixed(1)}%) + 个人缴费比例 (${(personalContributionRate*100).toFixed(1)}%))) × (1 + 预期投资收益率 (${(enterpriseAnnuityInvestmentReturn*100).toFixed(1)}%))`;
+                    enterpriseAnnuityAccumulationDetails += ` + (未来第${i+1}年缴费总额 (${annualContribution.toFixed(2)} 元, 即：未来第${i+1}年缴费工资基数 (${currentMonthlyWageForAnnuity.toFixed(2)}) × 12个月 × (单位缴费比例 (${(enterpriseContributionRate*100).toFixed(1)}%) + 个人缴费比例 (${(personalContributionRate*100).toFixed(1)}%))))`;
                 }
                 projectedEnterpriseAnnuityBalanceResultEl.textContent = `${projectedEnterpriseAnnuityBalance.toFixed(2)} 元`;
-                projectedEnterpriseAnnuityBalanceFormulaEl.innerHTML = `计算过程：<br>退休时企业/职业年金个人账户累计储存额 = 初始余额 + 每年缴费总额 × (1 + 预期投资收益率) ^ 剩余缴费年限`;
+                projectedEnterpriseAnnuityBalanceFormulaEl.innerHTML = `计算过程：<br>退休时企业/职业年金个人账户累计储存额 = 初始余额 + 每年缴费总额 × (1 + 预期投资收益率) ^ 剩余缴费年限<br>
+                                                                其中：每年缴费总额 = 月缴费工资基数 × 12个月 × (单位缴费比例 + 个人缴费比例)。此处的月缴费工资基数会随着"预期个人工资增长率"而逐年增长。`;
 
 
                 const monthlyPaymentFactor = DATA.monthlyPaymentFactors[retirementAge] || DATA.monthlyPaymentFactors[60]; // 默认60岁
@@ -696,7 +957,8 @@
                     personalPensionAccumulationDetails += ` + (每年缴费额 (${annualContribution.toFixed(2)}) × (1 + 预期投资收益率 (${(personalPensionInvestmentReturn*100).toFixed(1)}%)))`;
                 }
                 projectedPersonalPensionBalanceResultEl.textContent = `${projectedPersonalPensionBalance.toFixed(2)} 元`;
-                projectedPersonalPensionBalanceFormulaEl.innerHTML = `计算过程：<br>退休时个人养老金个人账户累计储存额 = 初始余额 + 每年缴费额 × (1 + 预期投资收益率) ^ 剩余缴费年限`;
+                projectedPersonalPensionBalanceFormulaEl.innerHTML = `计算过程：<br>退休时个人养老金个人账户累计储存额 = 初始余额 + 每年缴费额 × (1 + 预期投资收益率) ^ 剩余缴费年限<br>
+                                                                其中：每年缴费额为您在输入框中填写的"个人养老金年缴费额"。`;
 
 
                 const monthlyPaymentFactor = DATA.monthlyPaymentFactors[retirementAge] || DATA.monthlyPaymentFactors[60]; // 默认60岁
@@ -720,14 +982,51 @@
             const totalPensionAfterTax = totalPensionBeforeTax - personalPensionTaxSaving;
             totalPensionAfterTaxResultEl.textContent = `${totalPensionAfterTax.toFixed(2)} 元/月`;
 
+            // 总计每月养老金 (折算购买力)
+            let totalPensionPurchasingPower = 0;
+            let totalPensionPurchasingPowerFormulaText = '';
+            if (yearsToRetirement > 0) {
+                totalPensionPurchasingPower = totalPensionBeforeTax / Math.pow(1 + expectedInflationRate, yearsToRetirement);
+                totalPensionPurchasingPowerFormulaText = `公式：<br>总计每月养老金 (折算购买力) = 总计每月养老金 (税前) (${totalPensionBeforeTax.toFixed(2)}) ÷ (1 + 预期通货膨胀率 (${(expectedInflationRate*100).toFixed(1)}%)) ^ 距离退休年限 (${yearsToRetirement}年)`;
+            } else {
+                totalPensionPurchasingPower = totalPensionBeforeTax; // 如果已经退休，购买力就是当前金额
+                totalPensionPurchasingPowerFormulaText = `公式：<br>总计每月养老金 (折算购买力) = 总计每月养老金 (税前) (${totalPensionBeforeTax.toFixed(2)}) (已退休，无需折算)`;
+            }
+            totalPensionPurchasingPowerResultEl.textContent = `${totalPensionPurchasingPower.toFixed(2)} 元/月 (以当前币值衡量)`;
+            totalPensionPurchasingPowerFormulaEl.innerHTML = totalPensionPurchasingPowerFormulaText;
+
+
             // 养老金替代率
             const currentMonthlyWage = parseFloat(currentMonthlyPaymentBaseEl.value);
             const replacementRate = (totalPensionBeforeTax / currentMonthlyWage) * 100;
             replacementRateEl.textContent = `${replacementRate.toFixed(2)} %`;
         }
 
+        // Function to display annual personal contributions in the modal
+        function displayAnnualPersonalContributions() {
+            annualContributionTableBody.innerHTML = ''; // Clear existing table rows
+            if (annualPersonalContributionData.length === 0) {
+                const row = annualContributionTableBody.insertRow();
+                row.innerHTML = `<td colspan="3" class="text-center py-4 text-gray-600">无未来缴费数据，可能您已达到退休年龄或缴费年限已满。</td>`;
+                return;
+            }
+
+            annualPersonalContributionData.forEach(data => {
+                const row = annualContributionTableBody.insertRow();
+                row.innerHTML = `
+                    <td>${data.year}</td>
+                    <td>${data.monthlyWageBase.toFixed(2)}</td>
+                    <td>${data.annualContribution.toFixed(2)}</td>
+                `;
+            });
+        }
+
         // 页面加载时执行一次计算
         window.onload = () => {
+            // 默认选中直接输入平均指数，并确保显示
+            inputIndexMethodEl.checked = true;
+            indexInputContainerEl.classList.remove('hidden');
+            tableInputContainerEl.classList.add('hidden');
             calculatePension();
         };
     </script>
